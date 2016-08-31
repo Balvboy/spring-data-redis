@@ -18,15 +18,23 @@ package org.springframework.data.redis.connection.jedis;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+import org.springframework.data.redis.ConnectionFactoryTracker;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.BoundHashOperations;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,29 +45,47 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * @autor Mark Paluch
  * @author Christoph Strobl
  */
+@RunWith(Parameterized.class)
 public class ScanTests {
 
-	JedisConnectionFactory factory;
+	RedisConnectionFactory factory;
 	RedisTemplate<String, String> redisOperations;
 
 	ThreadPoolExecutor executor = new ThreadPoolExecutor(10, 10, 1, TimeUnit.MINUTES,
 			new LinkedBlockingDeque<Runnable>());
 
+	public ScanTests(RedisConnectionFactory factory) {
+
+		this.factory = factory;
+		ConnectionFactoryTracker.add(factory);
+	}
+
+	@Parameters
+	public static List<RedisConnectionFactory> params() {
+
+		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory();
+		jedisConnectionFactory.setHostName("127.0.0.1");
+		jedisConnectionFactory.setPort(6379);
+		jedisConnectionFactory.afterPropertiesSet();
+
+		LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory();
+		lettuceConnectionFactory.setHostName("127.0.0.1");
+		lettuceConnectionFactory.setPort(6379);
+		lettuceConnectionFactory.afterPropertiesSet();
+
+		return Arrays.<RedisConnectionFactory> asList(jedisConnectionFactory, lettuceConnectionFactory);
+	}
+
+	@AfterClass
+	public static void cleanUp() {
+		ConnectionFactoryTracker.cleanUp();
+	}
+
 	@Before
 	public void setUp() {
 
-		factory = new JedisConnectionFactory();
-		factory.setHostName("127.0.0.1");
-		factory.setPort(6379);
-		factory.afterPropertiesSet();
-
 		redisOperations = new StringRedisTemplate(factory);
 		redisOperations.afterPropertiesSet();
-	}
-
-	@After
-	public void tearDown() {
-		factory.destroy();
 	}
 
 	@Test
